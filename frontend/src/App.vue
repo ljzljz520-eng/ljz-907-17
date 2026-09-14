@@ -5,6 +5,7 @@ import Navbar from './components/Navbar.vue';
 import MovieCard from './components/MovieCard.vue';
 import Pagination from './components/Pagination.vue';
 import UploadModal from './components/UploadModal.vue';
+import ImportBatchesModal from './components/ImportBatchesModal.vue';
 import MovieDetailModal from './components/MovieDetailModal.vue';
 import { Loader2, Film, Search } from 'lucide-vue-next';
 
@@ -13,6 +14,7 @@ const currentPage = ref(1);
 const lastPage = ref(1);
 const loading = ref(true);
 const isUploadOpen = ref(false);
+const isBatchesOpen = ref(false);
 const isDetailOpen = ref(false);
 const selectedMovie = ref(null);
 const searchQuery = ref('');
@@ -58,6 +60,10 @@ const handleUploadSuccess = () => {
   fetchMovies(1); // Refresh to first page
 };
 
+const handleBatchReverted = () => {
+  fetchMovies(1); // 批次撤销后刷新影片列表
+};
+
 const openDetail = (movie) => {
   selectedMovie.value = movie;
   isDetailOpen.value = true;
@@ -66,7 +72,7 @@ const openDetail = (movie) => {
 
 <template>
   <div class="min-h-screen pb-20 bg-dark-900">
-    <Navbar @open-upload="isUploadOpen = true" />
+    <Navbar @open-upload="isUploadOpen = true" @open-batches="isBatchesOpen = true" />
 
     <main class="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
       
@@ -126,10 +132,16 @@ const openDetail = (movie) => {
       </div>
     </main>
 
-    <UploadModal 
-      :is-open="isUploadOpen" 
+    <UploadModal
+      :is-open="isUploadOpen"
       @close="isUploadOpen = false"
       @upload-success="handleUploadSuccess"
+    />
+
+    <ImportBatchesModal
+      :is-open="isBatchesOpen"
+      @close="isBatchesOpen = false"
+      @batch-reverted="handleBatchReverted"
     />
 
     <MovieDetailModal 

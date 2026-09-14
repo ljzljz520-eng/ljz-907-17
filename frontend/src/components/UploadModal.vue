@@ -12,6 +12,7 @@ const emit = defineEmits(['close', 'upload-success']);
 
 const isDragging = ref(false);
 const file = ref(null);
+const importer = ref('');
 const uploading = ref(false);
 const progress = ref(0);
 const result = ref(null);
@@ -46,6 +47,9 @@ const upload = async () => {
 
   const formData = new FormData();
   formData.append('file', file.value);
+  if (importer.value.trim()) {
+    formData.append('importer', importer.value.trim());
+  }
 
   try {
     // API Call
@@ -67,6 +71,7 @@ const upload = async () => {
 
 const reset = () => {
   file.value = null;
+  importer.value = '';
   result.value = null;
   error.value = null;
   progress.value = 0;
@@ -138,6 +143,17 @@ const reset = () => {
                   </button>
                 </div>
 
+                <!-- 导入人（选填），会记录到导入批次中 -->
+                <div class="mt-4">
+                  <input
+                    v-model="importer"
+                    type="text"
+                    maxlength="100"
+                    placeholder="导入人（选填），将记录到本次导入批次"
+                    class="block w-full rounded-lg border-none bg-white/5 px-3 py-2 text-sm text-white placeholder-gray-500 ring-1 ring-white/10 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
                 <div v-if="error" class="mt-3 flex items-start gap-2 text-sm text-red-400 bg-red-400/10 p-2 rounded">
                   <AlertCircle class="h-4 w-4 mt-0.5 shrink-0" />
                   <span>{{ error }}</span>
@@ -162,8 +178,10 @@ const reset = () => {
                   <CheckCircle class="h-6 w-6 text-green-500" />
                 </div>
                 <h4 class="text-lg font-medium text-white">导入完成！</h4>
+                <p v-if="result.batch_id" class="mt-1 text-xs text-gray-500">批次 #{{ result.batch_id }}</p>
                 <p class="mt-2 text-sm text-gray-400">
                   成功导入 <span class="text-green-400 font-bold">{{ result.imported }}</span> 部电影。
+                  <span v-if="result.skipped > 0" class="text-yellow-400">跳过 {{ result.skipped }} 条（已存在）。</span>
                   <span v-if="result.failed > 0" class="text-red-400">({{ result.failed }} 失败)</span>
                 </p>
                 

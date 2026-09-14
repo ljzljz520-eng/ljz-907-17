@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ImportBatch;
+use App\Models\ImportBatchItem;
 use App\Models\Movie;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -44,6 +46,7 @@ class MovieController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'file' => 'required|file|mimes:csv,txt|max:51200', // 50MB max
+            'importer' => 'nullable|string|max:100', // 导入人（选填）
         ]);
 
         if ($validator->fails()) {
@@ -52,6 +55,10 @@ class MovieController extends Controller
 
         $file = $request->file('file');
         $path = $file->getRealPath();
+        $originalName = $file->getClientOriginalName() ?: 'upload.csv';
+        $importerName = $this->cleanField($request->input('importer'), 100)
+            ?? optional($request->user())->name
+            ?? '匿名';
 
         // 尝试以 UTF-8 编码打开文件
         $handle = fopen($path, 'r');
@@ -107,14 +114,31 @@ class MovieController extends Controller
             return response()->json(['error' => 'CSV must contain "title" and "year" columns'], 400);
         }
 
-        $successCount = 0;
+        $successCount = 0; // 新增影片数
+        $skippedCount = 0; // 已存在（跳过新增，仅更新）的条数
         $errorCount = 0;
         $errors = [];
         $rowNumber = 1;
+        $itemBuffer = [];
+
+        // 批量写入批次明细，避免逐行 INSERT
+        $flushItems = function () use (&$itemBuffer) {
+            if (!empty($itemBuffer)) {
+                ImportBatchItem::insert($itemBuffer);
+                $itemBuffer = [];
+            }
+        };
 
         DB::beginTransaction();
 
         try {
+            // 每次上传生成一条批次记录
+            $batch = ImportBatch::create([
+                'filename' => $this->cleanField($originalName, 255) ?: 'upload.csv',
+                'importer_name' => $importerName,
+                'status' => ImportBatch::STATUS_COMPLETED,
+            ]);
+
             while (($row = fgetcsv($handle)) !== false) {
                 $rowNumber++;
                 
@@ -175,12 +199,36 @@ class MovieController extends Controller
                         'screenshots' => ($map['screenshots'] !== false && isset($row[$map['screenshots']])) ? explode(',', $row[$map['screenshots']]) : null,
                     ];
 
-                    Movie::updateOrCreate(
+                    $movie = Movie::updateOrCreate(
                         ['title' => $data['title'], 'year' => $data['year']],
                         $data
                     );
 
-                    $successCount++;
+                    // 区分"新增"与"已存在"：撤销批次时只删除新增记录，
+                    // 已存在的影片（updated）在导入前就存在，绝不在撤销时删除
+                    $action = $movie->wasRecentlyCreated
+                        ? ImportBatchItem::ACTION_CREATED
+                        : ImportBatchItem::ACTION_UPDATED;
+
+                    if ($action === ImportBatchItem::ACTION_CREATED) {
+                        $successCount++;
+                    } else {
+                        $skippedCount++;
+                    }
+
+                    $itemBuffer[] = [
+                        'import_batch_id' => $batch->id,
+                        'movie_id' => $movie->id,
+                        'title' => $data['title'],
+                        'year' => $data['year'],
+                        'action' => $action,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+
+                    if (count($itemBuffer) >= 500) {
+                        $flushItems();
+                    }
                 } catch (\Exception $e) {
                     $errorCount++;
                     if (count($errors) < 10) { // Limit error reporting
@@ -189,7 +237,17 @@ class MovieController extends Controller
                     }
                 }
             }
-            
+
+            $flushItems();
+
+            // 汇总批次的成功/跳过/错误统计与错误摘要
+            $batch->update([
+                'success_count' => $successCount,
+                'skipped_count' => $skippedCount,
+                'error_count' => $errorCount,
+                'errors' => $errors,
+            ]);
+
             DB::commit();
         } catch (\Exception $e) {
             DB::rollBack();
@@ -205,7 +263,9 @@ class MovieController extends Controller
 
         return response()->json([
             'status' => 'success',
+            'batch_id' => $batch->id,
             'imported' => $successCount,
+            'skipped' => $skippedCount,
             'failed' => $errorCount,
             'errors' => $cleanedErrors
         ]);

@@ -21,8 +21,9 @@
         <env name="APP_ENV" value="testing"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="CACHE_DRIVER" value="array"/>
-        <!-- <env name="DB_CONNECTION" value="sqlite"/> -->
-        <!-- <env name="DB_DATABASE" value=":memory:"/> -->
+        <!-- 测试使用独立的 MySQL 数据库，避免 migrate:fresh 清空开发数据 -->
+        <!-- 首次运行前请创建：CREATE DATABASE movies_test; -->
+        <env name="DB_DATABASE" value="movies_test"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="QUEUE_CONNECTION" value="sync"/>

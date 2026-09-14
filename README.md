@@ -74,6 +74,32 @@ ready to handle connections
 
 **测试导入**：项目根目录提供了 `example_movies_crawled.csv` 测试文件，您可以通过 Web 界面上传此文件来测试 CSV 导入功能。
 
+### 导入批次管理
+
+每次 CSV 上传都会生成一条导入批次记录，点击导航栏「导入记录」即可查看：
+
+- **批次记录**：自动保存文件名、导入人（上传时可填写，选填）、新增条数、跳过条数（已存在的影片）与错误摘要
+- **批次回看**：点击「查看影片」可回看某一批次导入了哪些影片，以及每部影片的导入动作（新增/已存在）与当前状态（在库/已删除）
+- **按批次撤销**：若整批传错，可一键撤销该批次——仅删除该批次**新增**的影片；导入前就存在的影片（被更新/跳过的）绝不会被删除。若某部新增影片被后续其他批次引用，撤销时也会安全保留
+- 批次撤销后记录保留（状态变为"已撤销"），仍可回看历史明细
+
+**相关 API**：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/import-batches` | 批次列表（分页） |
+| GET | `/api/import-batches/{id}` | 批次详情（含导入的影片明细） |
+| POST | `/api/import-batches/{id}/revert` | 撤销批次（仅删除新增影片） |
+
+### 运行测试
+
+后端测试使用独立的 MySQL 数据库（避免清空开发数据），首次运行前请创建：
+
+```bash
+docker compose exec db mysql -u root -proot_password -e "CREATE DATABASE IF NOT EXISTS movies_test;"
+docker compose exec backend php artisan test
+```
+
 ## 🎨 核心特性
 
 - **极致详情展示**: 展示包括译名、年代、产地、语言、上映日期、IMDb/豆瓣双评分及外链、片长、编剧、主演、获奖情况等丰富信息

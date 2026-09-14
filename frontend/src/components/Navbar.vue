@@ -1,7 +1,7 @@
 <script setup>
-import { Film, Upload } from 'lucide-vue-next';
+import { Film, Upload, History } from 'lucide-vue-next';
 
-defineEmits(['open-upload']);
+defineEmits(['open-upload', 'open-batches']);
 </script>
 
 <template>
@@ -16,13 +16,22 @@ defineEmits(['open-upload']);
       </div>
 
       <!-- Actions -->
-      <button 
-        @click="$emit('open-upload')"
-        class="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20 active:scale-95"
-      >
-        <Upload class="h-4 w-4" />
-        <span class="hidden sm:inline">导入电影</span>
-      </button>
+      <div class="flex items-center gap-2">
+        <button 
+          @click="$emit('open-batches')"
+          class="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20 active:scale-95"
+        >
+          <History class="h-4 w-4" />
+          <span class="hidden sm:inline">导入记录</span>
+        </button>
+        <button 
+          @click="$emit('open-upload')"
+          class="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20 active:scale-95"
+        >
+          <Upload class="h-4 w-4" />
+          <span class="hidden sm:inline">导入电影</span>
+        </button>
+      </div>
     </div>
   </nav>
   <!-- Spacer to prevent content from hiding under fixed nav -->
